@@ -54,6 +54,15 @@ export default function DocumentEditor() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
+        <button
+          onClick={() => navigate(isNew ? '/' : `/doc/${id}`)}
+          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          aria-label="Back"
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="12,4 6,10 12,16" />
+          </svg>
+        </button>
         <input
           type="text"
           value={title}
@@ -71,7 +80,7 @@ export default function DocumentEditor() {
       </div>
 
       {/* Desktop: Split View */}
-      <div className="hidden md:grid md:grid-cols-2 gap-4 min-h-[60vh]">
+      <div className="hidden lg:grid lg:grid-cols-2 gap-4 min-h-[60vh]">
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -83,8 +92,8 @@ export default function DocumentEditor() {
         </div>
       </div>
 
-      {/* Mobile: Tab View */}
-      <div className="md:hidden">
+      {/* Mobile/Tablet: Tab View */}
+      <div className="lg:hidden">
         <Tabs.Root defaultValue="write">
           <Tabs.List className="flex border-b border-gray-200 mb-4">
             <Tabs.Tab

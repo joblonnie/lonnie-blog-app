@@ -3,9 +3,10 @@ import type { DragEvent, ChangeEvent } from 'react';
 
 interface FileUploadProps {
   onUpload: (title: string, content: string) => void;
+  compact?: boolean;
 }
 
-export default function FileUpload({ onUpload }: FileUploadProps) {
+export default function FileUpload({ onUpload, compact }: FileUploadProps) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -39,15 +40,23 @@ export default function FileUpload({ onUpload }: FileUploadProps) {
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
       onClick={() => inputRef.current?.click()}
-      className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+      className={`border-2 border-dashed rounded-xl text-center cursor-pointer transition-colors ${
+        compact ? 'p-3' : 'p-8'
+      } ${
         dragging
           ? 'border-blue-500 bg-blue-50'
           : 'border-gray-300 hover:border-gray-400 bg-white'
       }`}
     >
       <div className="text-gray-500">
-        <p className="text-lg font-medium">Drop .md file here</p>
-        <p className="text-sm mt-1">or click to browse</p>
+        {compact ? (
+          <p className="text-xs">Drop .md file or click to upload</p>
+        ) : (
+          <>
+            <p className="text-lg font-medium">Drop .md file here</p>
+            <p className="text-sm mt-1">or click to browse</p>
+          </>
+        )}
       </div>
       <input
         ref={inputRef}

@@ -1,22 +1,32 @@
-import { Outlet, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import Sidebar from '@/components/Sidebar';
 
 export default function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold text-gray-900 hover:text-gray-700">
-            MD Viewer
-          </Link>
-          <Link
-            to="/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            New Document
-          </Link>
-        </div>
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      {/* Mobile header */}
+      <header className="md:hidden bg-white border-b border-gray-200 sticky top-0 z-30 px-4 py-3 flex items-center gap-3">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-100"
+          aria-label="Open menu"
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="5" x2="17" y2="5" />
+            <line x1="3" y1="10" x2="17" y2="10" />
+            <line x1="3" y1="15" x2="17" y2="15" />
+          </svg>
+        </button>
+        <span className="text-lg font-bold text-gray-900">Lonnie Blog</span>
       </header>
-      <main className="max-w-5xl mx-auto px-4 py-6">
+
+      {/* Main content */}
+      <main className="md:ml-64 px-4 py-6 max-w-5xl">
         <Outlet />
       </main>
     </div>
