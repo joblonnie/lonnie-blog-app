@@ -1,0 +1,7 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+@import 'highlight.js/styles/github.min.css';
+
+body {
+  isolation: isolate;
+}
