@@ -215,13 +215,13 @@ export default function GraphCanvas({ nodes, edges }: Props) {
                       setTooltip({
                         x: e.clientX - rect.left,
                         y: e.clientY - rect.top - 10,
-                        content: `${node.title}${node.category ? `\n[${node.category}]` : ''}\n${node.topics.map((t) => t.name).join(', ')}`,
+                        content: `${node.title}\n${node.topics.map((t) => t.name).join(', ')}`,
                       });
                     }}
                     onPointerLeave={() => setTooltip(null)}
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/doc/${node.id}`);
+                      navigate('/');
                     }}
                   />
                   <text

@@ -8,7 +8,6 @@ export interface Document {
   id: number;
   title: string;
   content: string;
-  category: string | null;
   summary: string | null;
   keywords: string[];
   toc: string[];
@@ -17,7 +16,7 @@ export interface Document {
   updatedAt: string;
 }
 
-export type DocumentListItem = Omit<Document, 'content' | 'summary' | 'keywords' | 'toc' | 'topics'>;
+export type DocumentListItem = Omit<Document, 'content' | 'summary' | 'keywords' | 'toc'>;
 
 export interface Topic {
   id: number;
@@ -29,7 +28,6 @@ export interface Topic {
 export interface GraphNode {
   id: number;
   title: string;
-  category: string | null;
   topics: DocumentTopic[];
 }
 

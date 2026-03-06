@@ -5,7 +5,6 @@ import { extractToc } from '@/lib/toc';
 import type { DocumentTopic } from '@/types';
 
 interface InfoPanelProps {
-  category: string | null;
   topics: DocumentTopic[];
   summary: string | null;
   keywords: string[];
@@ -34,23 +33,11 @@ function SkeletonLines() {
   );
 }
 
-function PanelContent({ category, topics, summary, keywords, content, onRegenerate, regenerating }: InfoPanelProps) {
+function PanelContent({ topics, summary, keywords, content, onRegenerate, regenerating }: InfoPanelProps) {
   const toc = useMemo(() => extractToc(content), [content]);
 
   return (
     <div className="space-y-5">
-      {/* Category */}
-      <section>
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Category</h3>
-        {category ? (
-          <span className="inline-block px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-full">
-            {category}
-          </span>
-        ) : (
-          <div className="h-5 w-16 bg-gray-100 rounded-full animate-pulse" />
-        )}
-      </section>
-
       {/* Topics */}
       <section>
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Topics</h3>

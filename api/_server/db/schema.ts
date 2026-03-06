@@ -4,7 +4,6 @@ export const documents = pgTable('documents', {
   id: serial('id').primaryKey(),
   title: text('title').notNull(),
   content: text('content').notNull().default(''),
-  category: text('category'),
   summary: text('summary'),
   keywords: jsonb('keywords').$type<string[]>().default([]),
   toc: jsonb('toc').$type<string[]>().default([]),

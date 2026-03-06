@@ -115,7 +115,7 @@ export default function AskAI() {
                             {msg.sources.map((src) => (
                               <Link
                                 key={src.id}
-                                to={`/doc/${src.id}`}
+                                to="/"
                                 className="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 hover:bg-gray-100 rounded-md text-xs text-blue-600 hover:text-blue-700 transition-colors"
                               >
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

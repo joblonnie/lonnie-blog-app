@@ -13,7 +13,7 @@ app.get('/graph', async (c) => {
     db.select().from(topics),
     db.select().from(documentTopics),
     db.select().from(documentRelationships),
-    db.select({ id: documents.id, title: documents.title, category: documents.category }).from(documents),
+    db.select({ id: documents.id, title: documents.title }).from(documents),
     getOntologyStatus(),
   ]);
 
@@ -39,7 +39,6 @@ app.get('/graph', async (c) => {
       return {
         id: d.id,
         title: d.title,
-        category: d.category,
         topics: docTopics,
       };
     });

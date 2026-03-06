@@ -28,10 +28,6 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-export function fetchCategories(): Promise<string[]> {
-  return request(`${BASE}/categories`);
-}
-
 export function fetchDocuments(): Promise<DocumentListItem[]> {
   return request(BASE);
 }
@@ -40,7 +36,7 @@ export function fetchDocument(id: number): Promise<Document> {
   return request(`${BASE}/${id}`);
 }
 
-export function createDocument(data: { title: string; content: string; category?: string }): Promise<Document> {
+export function createDocument(data: { title: string; content: string }): Promise<Document> {
   return request(BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -48,7 +44,7 @@ export function createDocument(data: { title: string; content: string; category?
   });
 }
 
-export function updateDocument(id: number, data: { title?: string; content?: string; category?: string }): Promise<Document> {
+export function updateDocument(id: number, data: { title?: string; content?: string }): Promise<Document> {
   return request(`${BASE}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
