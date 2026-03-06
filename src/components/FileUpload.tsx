@@ -14,8 +14,21 @@ export default function FileUpload({ onUpload, compact }: FileUploadProps) {
     if (!file.name.endsWith('.md')) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const title = file.name.replace(/\.md$/, '');
+      const raw = e.target?.result as string;
+      const lines = raw.split('\n');
+      const h1Index = lines.findIndex((l) => /^#\s+/.test(l));
+      let title: string;
+      let content: string;
+      if (h1Index !== -1) {
+        title = lines[h1Index].replace(/^#\s+/, '').trim();
+        const remaining = [...lines.slice(0, h1Index), ...lines.slice(h1Index + 1)];
+        // Remove leading blank lines after title removal
+        while (remaining.length > 0 && remaining[0].trim() === '') remaining.shift();
+        content = remaining.join('\n');
+      } else {
+        title = file.name.replace(/\.md$/, '');
+        content = raw;
+      }
       onUpload(title, content);
     };
     reader.readAsText(file);

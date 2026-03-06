@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '@/components/Sidebar';
+import { ToastProvider } from '@/components/Toast';
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
+    <ToastProvider>
     <div className="min-h-screen bg-gray-50">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -26,9 +28,10 @@ export default function App() {
       </header>
 
       {/* Main content */}
-      <main className="md:ml-64 px-4 py-6 max-w-5xl">
+      <main className="md:ml-64 px-4 py-6">
         <Outlet />
       </main>
     </div>
+    </ToastProvider>
   );
 }

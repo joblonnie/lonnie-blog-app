@@ -1,12 +1,12 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { AlertDialog } from '@base-ui-components/react/alert-dialog';
 import { Menu } from '@base-ui-components/react/menu';
+import { Separator } from '@base-ui-components/react/separator';
 import { useDocumentList } from '@/hooks/useDocuments';
-import { useToast } from '@/hooks/useToast';
 import { createDocument, deleteDocument } from '@/lib/api';
 import FileUpload from './FileUpload';
-import Toast from './Toast';
+import { toastManager } from './Toast';
+import ConfirmDialog from './ConfirmDialog';
 import type { DocumentListItem } from '@/types';
 
 interface SidebarProps {
@@ -19,12 +19,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [deleteTarget, setDeleteTarget] = useState<DocumentListItem | null>(null);
-  const toast = useToast();
+  const toast = { show: (msg: string) => toastManager.add({ title: msg }) };
 
-  // Refresh document list on navigation (e.g. after save)
-  useEffect(() => {
-    refresh();
-  }, [location.pathname, refresh]);
+  // List loads on mount and refreshes on create/delete (called explicitly)
 
   // Parse current document ID from URL
   const currentDocId = (() => {
@@ -32,10 +29,28 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     return match ? Number(match[1]) : null;
   })();
 
+  const [creating, setCreating] = useState(false);
+
+  const handleCreate = useCallback(async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const doc = await createDocument({ title: 'Untitled', content: '' });
+      refresh();
+      navigate(`/doc/${doc.id}/edit`);
+      onClose();
+    } catch {
+      toast.show('Create failed');
+    } finally {
+      setCreating(false);
+    }
+  }, [creating, navigate, refresh, toast, onClose]);
+
   const handleUpload = useCallback(async (title: string, content: string) => {
     try {
       const doc = await createDocument({ title, content });
       toast.show(`"${title}" uploaded`);
+      refresh();
       navigate(`/doc/${doc.id}`);
       onClose();
     } catch {
@@ -81,7 +96,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         }`}
       >
         {/* Logo + New button */}
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="p-4 flex items-center justify-between">
           <Link
             to="/"
             onClick={onClose}
@@ -90,15 +105,55 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             Lonnie Blog
           </Link>
           <button
-            onClick={() => handleNavigation('/new')}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+            onClick={handleCreate}
+            disabled={creating}
+            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            New
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="7" y1="2" x2="7" y2="12" />
+              <line x1="2" y1="7" x2="12" y2="7" />
+            </svg>
+            Create
+          </button>
+        </div>
+        <Separator className="border-t border-gray-200" />
+
+        {/* Knowledge Graph link */}
+        <div className="px-3 pt-3">
+          <button
+            onClick={() => handleNavigation('/graph')}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              location.pathname === '/graph'
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="6" cy="6" r="3" />
+              <circle cx="18" cy="6" r="3" />
+              <circle cx="12" cy="18" r="3" />
+              <line x1="8.5" y1="7.5" x2="10.5" y2="16" />
+              <line x1="15.5" y1="7.5" x2="13.5" y2="16" />
+            </svg>
+            Knowledge Graph
+          </button>
+          <button
+            onClick={() => handleNavigation('/ask')}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              location.pathname === '/ask'
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            AI Ask
           </button>
         </div>
 
         {/* Compact File Upload */}
-        <div className="px-3 pt-3">
+        <div className="px-3 pt-2">
           <FileUpload onUpload={handleUpload} compact />
         </div>
 
@@ -122,6 +177,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                   onClick={() => handleNavigation(`/doc/${doc.id}`)}
                   className="w-full text-left px-3 py-2.5 block"
                 >
+                  {doc.category && (
+                    <span className="inline-block text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 mb-1">
+                      {doc.category}
+                    </span>
+                  )}
                   <p className="text-sm font-medium truncate">{doc.title}</p>
                   <p className={`text-xs mt-0.5 ${
                     currentDocId === doc.id ? 'text-blue-500' : 'text-gray-400'
@@ -165,33 +225,15 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
       </aside>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog.Root open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
-        <AlertDialog.Portal>
-          <AlertDialog.Backdrop className="fixed inset-0 bg-black/40 z-[60]" />
-          <AlertDialog.Popup className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl p-6 shadow-xl z-[60] w-[90vw] max-w-sm">
-            <AlertDialog.Title className="text-lg font-semibold text-gray-900">
-              Delete Document
-            </AlertDialog.Title>
-            <AlertDialog.Description className="text-sm text-gray-500 mt-2">
-              Are you sure you want to delete &quot;{deleteTarget?.title}&quot;? This action cannot be undone.
-            </AlertDialog.Description>
-            <div className="flex gap-3 justify-end mt-6">
-              <AlertDialog.Close className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
-                Cancel
-              </AlertDialog.Close>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700"
-              >
-                Delete
-              </button>
-            </div>
-          </AlertDialog.Popup>
-        </AlertDialog.Portal>
-      </AlertDialog.Root>
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete Document"
+        description={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+      />
 
-      <Toast message={toast.message} />
     </>
   );
 }
