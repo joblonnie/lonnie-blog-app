@@ -11,6 +11,7 @@ interface InfoPanelProps {
   content: string;
   onRegenerate?: () => void;
   regenerating?: boolean;
+  loading?: boolean;
 }
 
 function SkeletonChips() {
@@ -33,7 +34,11 @@ function SkeletonLines() {
   );
 }
 
-function PanelContent({ topics, summary, keywords, content, onRegenerate, regenerating }: InfoPanelProps) {
+function EmptyText({ text }: { text: string }) {
+  return <p className="text-xs text-gray-400 italic">{text}</p>;
+}
+
+function PanelContent({ topics, summary, keywords, content, onRegenerate, regenerating, loading }: InfoPanelProps) {
   const toc = useMemo(() => extractToc(content), [content]);
 
   return (
@@ -53,8 +58,10 @@ function PanelContent({ topics, summary, keywords, content, onRegenerate, regene
               </span>
             ))}
           </div>
-        ) : (
+        ) : loading ? (
           <SkeletonChips />
+        ) : (
+          <EmptyText text="No topics assigned" />
         )}
       </section>
 
@@ -74,8 +81,10 @@ function PanelContent({ topics, summary, keywords, content, onRegenerate, regene
         </div>
         {summary ? (
           <p className="text-sm text-gray-700 leading-relaxed">{summary}</p>
-        ) : (
+        ) : loading ? (
           <SkeletonLines />
+        ) : (
+          <EmptyText text="No summary yet" />
         )}
       </section>
 
@@ -93,8 +102,10 @@ function PanelContent({ topics, summary, keywords, content, onRegenerate, regene
               </span>
             ))}
           </div>
-        ) : (
+        ) : loading ? (
           <SkeletonChips />
+        ) : (
+          <EmptyText text="No keywords yet" />
         )}
       </section>
 
@@ -119,8 +130,10 @@ function PanelContent({ topics, summary, keywords, content, onRegenerate, regene
               </a>
             ))}
           </nav>
-        ) : (
+        ) : loading ? (
           <SkeletonLines />
+        ) : (
+          <EmptyText text="No headings found" />
         )}
       </section>
     </div>

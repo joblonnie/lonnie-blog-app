@@ -137,6 +137,7 @@ app.post('/:id/generate', async (c) => {
   await generateAIMetadata(doc.id, doc.content);
 
   const [updated] = await db.select().from(documents).where(eq(documents.id, id));
+  if (!updated) return c.json({ error: 'Not found' }, 404);
   return c.json({ summary: updated.summary, keywords: updated.keywords, toc: updated.toc });
 });
 

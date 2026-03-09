@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useOntology } from '@/hooks/useOntology';
 import GraphCanvas from './GraphCanvas';
 
@@ -55,14 +55,18 @@ export default function KnowledgeGraph() {
   const hasData = graph && graph.nodes.length > 0;
   const isStale = graph?.meta.status === 'stale';
 
-  // Filter nodes/edges by active topics
-  const filteredNodes = hasData && activeTopics
-    ? graph.nodes.filter((n) => n.topics.some((t) => activeTopics.has(t.name)))
-    : graph?.nodes || [];
-  const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
-  const filteredEdges = hasData
-    ? (graph.edges || []).filter((e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target))
-    : [];
+  // Filter nodes/edges by active topics (memoized to prevent GraphCanvas simulation reset)
+  const filteredNodes = useMemo(() => {
+    if (!hasData) return graph?.nodes || [];
+    if (!activeTopics) return graph.nodes;
+    return graph.nodes.filter((n) => n.topics.some((t) => activeTopics.has(t.name)));
+  }, [graph?.nodes, activeTopics, hasData]);
+
+  const filteredEdges = useMemo(() => {
+    if (!hasData) return [];
+    const nodeIds = new Set(filteredNodes.map((n) => n.id));
+    return (graph.edges || []).filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
+  }, [graph?.edges, filteredNodes, hasData]);
 
   return (
     <div className="flex flex-col -mx-4 -my-6 h-screen md:h-screen">

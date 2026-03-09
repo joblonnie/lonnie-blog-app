@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDocumentList, useDocument } from '@/hooks/useDocuments';
+import { useDocumentList, useDocument, isAiPending } from '@/hooks/useDocuments';
 import { deleteDocument, createDocument } from '@/lib/api';
 import { toastManager } from './Toast';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -9,6 +9,16 @@ import ConfirmDialog from './ConfirmDialog';
 import FileUpload from './FileUpload';
 import { useRegenerate } from '@/hooks/useRegenerate';
 import type { DocumentListItem } from '@/types';
+
+// --- Reactive mobile detection ---
+const mobileQuery = typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)') : null;
+function subscribeMobile(cb: () => void) {
+  mobileQuery?.addEventListener('change', cb);
+  return () => mobileQuery?.removeEventListener('change', cb);
+}
+function getIsMobile() {
+  return mobileQuery?.matches ?? false;
+}
 
 // --- Detail Panel for a single document ---
 function DetailPanel({
@@ -38,7 +48,7 @@ function DetailPanel({
   const retryRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
     clearTimeout(retryRef.current);
-    if (document && document.summary === null && document.content.length >= 50) {
+    if (isAiPending(document)) {
       retryRef.current = setTimeout(() => refresh(), 3000);
     }
     return () => clearTimeout(retryRef.current);
@@ -59,6 +69,7 @@ function DetailPanel({
     }
   }, [document, onDelete]);
 
+  const aiLoading = isAiPending(document);
   const panelProps = {
     topics: document?.topics ?? [],
     summary: document?.summary ?? null,
@@ -66,6 +77,7 @@ function DetailPanel({
     content: document?.content ?? '',
     onRegenerate: handleRegenerate,
     regenerating,
+    loading: loading || aiLoading,
   };
 
   return (
@@ -233,8 +245,7 @@ export default function DocumentList() {
       if (prev[0] === docId) return [null, prev[1]];
       if (prev[1] === docId) return [prev[0], null];
       // Mobile: only slot 0
-      const isMobile = window.innerWidth < 768;
-      if (isMobile) return [docId, null];
+      if (getIsMobile()) return [docId, null];
       // Place in first empty slot
       if (prev[0] === null) return [docId, prev[1]];
       if (prev[1] === null) return [prev[0], docId];
@@ -324,7 +335,7 @@ export default function DocumentList() {
   }, [documents]);
 
   const hasAnySlot = slots[0] !== null || slots[1] !== null;
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const isMobile = useSyncExternalStore(subscribeMobile, getIsMobile);
 
   if (loading && documents.length === 0) {
     return (

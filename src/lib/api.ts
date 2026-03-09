@@ -56,7 +56,7 @@ export async function deleteDocument(id: number): Promise<void> {
   await request(`${BASE}/${id}`, { method: 'DELETE' });
 }
 
-export function generateDocumentAI(id: number): Promise<{ summary: string; keywords: string[] }> {
+export function generateDocumentAI(id: number): Promise<{ summary: string | null; keywords: string[]; toc: string[] }> {
   return request(`${BASE}/${id}/generate`, { method: 'POST' });
 }
 

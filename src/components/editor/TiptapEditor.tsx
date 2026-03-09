@@ -129,7 +129,9 @@ export default function TiptapEditor({ content, onChange, placeholder }: TiptapE
 
   // Handle drop events
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || !editor.view?.dom) return;
+
+    const dom = editor.view.dom;
 
     const handleDrop = (event: DragEvent) => {
       const files = event.dataTransfer?.files;
@@ -161,7 +163,6 @@ export default function TiptapEditor({ content, onChange, placeholder }: TiptapE
       }
     };
 
-    const dom = editor.view.dom;
     dom.addEventListener('drop', handleDrop);
     dom.addEventListener('paste', handlePaste);
     return () => {

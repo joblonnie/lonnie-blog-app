@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { AlertDialog } from '@base-ui-components/react/alert-dialog';
-import { useDocument, useDocumentList } from '@/hooks/useDocuments';
+import { useDocument, useDocumentList, isAiPending } from '@/hooks/useDocuments';
 import { createDocument, updateDocument, generateDocumentAI } from '@/lib/api';
 import { InfoPanelDesktop, InfoPanelMobile } from './InfoPanel';
 import { toastManager } from './Toast';
@@ -14,8 +14,6 @@ export default function DocumentEditor() {
   const isNew = !id;
   const { document, loading, refresh } = useDocument(isNew ? undefined : Number(id));
   const { refresh: refreshList } = useDocumentList();
-  const toast = { show: (msg: string) => toastManager.add({ title: msg }) };
-
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
@@ -57,18 +55,27 @@ export default function DocumentEditor() {
 
   // Auto-save every 30s when dirty (existing documents only)
   const autoSaveRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const titleRef = useRef(title);
+  const contentRef = useRef(content);
+  const isDirtyRef = useRef(isDirty);
+  const savingRef = useRef(saving);
+  titleRef.current = title;
+  contentRef.current = content;
+  isDirtyRef.current = isDirty;
+  savingRef.current = saving;
+
   useEffect(() => {
     clearInterval(autoSaveRef.current);
     if (isNew || !id) return;
     autoSaveRef.current = setInterval(() => {
-      if (!isDirty || saving) return;
-      updateDocument(Number(id), { title, content }).then(() => {
+      if (!isDirtyRef.current || savingRef.current) return;
+      updateDocument(Number(id), { title: titleRef.current, content: contentRef.current }).then(() => {
         setSaved(true);
         toastManager.add({ title: 'Auto-saved' });
       }).catch(() => {});
     }, 30000);
     return () => clearInterval(autoSaveRef.current);
-  }, [isNew, id, isDirty, saving, title, content]);
+  }, [isNew, id]);
 
   const { regenerating, setRegenerating, handleRegenerate } = useRegenerate(
     id ? Number(id) : undefined,
@@ -81,11 +88,11 @@ export default function DocumentEditor() {
     try {
       if (isNew) {
         const doc = await createDocument({ title, content });
-        toast.show('Document created');
+        toastManager.add({ title: 'Document created' });
         setSaved(true);
         refreshList();
         skipBlockerRef.current = true;
-        navigate('/', { replace: true });
+        navigate(`/doc/${doc.id}/edit`, { replace: true });
       } else {
         await updateDocument(Number(id), { title, content });
         setSaved(true);
@@ -100,14 +107,14 @@ export default function DocumentEditor() {
         }
         await refresh();
         refreshList();
-        toast.show('Saved');
+        toastManager.add({ title: 'Saved' });
       }
     } catch {
-      toast.show('Save failed');
+      toastManager.add({ title: 'Save failed' });
     } finally {
       setSaving(false);
     }
-  }, [title, content, isNew, id, navigate, toast, refresh, refreshList]);
+  }, [title, content, isNew, id, navigate, refresh, refreshList]);
 
   const handleContentChange = useCallback((markdown: string) => {
     setSaved(false);
@@ -118,6 +125,7 @@ export default function DocumentEditor() {
     return <div className="text-center py-12 text-gray-500">Loading...</div>;
   }
 
+  const aiLoading = isAiPending(document);
   const panelProps = {
     topics: document?.topics ?? [],
     summary: document?.summary ?? null,
@@ -125,6 +133,7 @@ export default function DocumentEditor() {
     content,
     onRegenerate: isNew ? undefined : handleRegenerate,
     regenerating,
+    loading: loading || regenerating || aiLoading,
   };
 
   return (

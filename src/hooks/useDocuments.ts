@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import type { Document, DocumentListItem } from '@/types';
 import * as api from '@/lib/api';
 
@@ -49,21 +49,40 @@ export function useDocumentList() {
   return { documents, loading, refresh };
 }
 
+export function isAiPending(doc: Document | null): boolean {
+  return !!doc && doc.summary === null && doc.content.length >= 50;
+}
+
 export function useDocument(id: number | undefined) {
   const [document, setDocument] = useState<Document | null>(null);
   const [loading, setLoading] = useState(id != null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const refresh = useCallback(async () => {
     if (id == null) return;
-    const doc = await api.fetchDocument(id);
-    setDocument(doc);
+    try {
+      const doc = await api.fetchDocument(id);
+      if (mountedRef.current) setDocument(doc);
+    } catch {
+      // silently fail — caller can retry
+    }
   }, [id]);
 
   useEffect(() => {
     if (id == null) return;
+    let cancelled = false;
     setDocument(null);
     setLoading(true);
-    api.fetchDocument(id).then(setDocument).finally(() => setLoading(false));
+    api.fetchDocument(id)
+      .then((doc) => { if (!cancelled) setDocument(doc); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [id]);
 
   return { document, loading, refresh };
