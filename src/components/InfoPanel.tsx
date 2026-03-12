@@ -151,7 +151,7 @@ export function InfoPanelDesktop(props: InfoPanelProps) {
 }
 
 export function InfoPanelMobile(props: InfoPanelProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   return (
     <Collapsible.Root open={open} onOpenChange={setOpen}>

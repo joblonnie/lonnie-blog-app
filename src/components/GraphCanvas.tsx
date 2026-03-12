@@ -221,7 +221,7 @@ export default function GraphCanvas({ nodes, edges }: Props) {
                     onPointerLeave={() => setTooltip(null)}
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/doc/${node.id}/edit`);
+                      navigate(`/admin/doc/${node.id}/edit`);
                     }}
                   />
                   <text

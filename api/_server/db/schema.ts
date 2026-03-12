@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, jsonb, integer, real, unique } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, jsonb, integer, real, unique, boolean } from 'drizzle-orm/pg-core';
 
 export const documents = pgTable('documents', {
   id: serial('id').primaryKey(),
@@ -7,6 +7,8 @@ export const documents = pgTable('documents', {
   summary: text('summary'),
   keywords: jsonb('keywords').$type<string[]>().default([]),
   toc: jsonb('toc').$type<string[]>().default([]),
+  published: boolean('published').notNull().default(false),
+  category: text('category'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -34,6 +36,15 @@ export const documentRelationships = pgTable('document_relationships', {
   relationshipType: text('relationship_type').notNull(),
   description: text('description'),
   strength: real('strength').notNull().default(0.5),
+});
+
+export const pageViews = pgTable('page_views', {
+  id: serial('id').primaryKey(),
+  path: text('path').notNull(),
+  documentId: integer('document_id').references(() => documents.id, { onDelete: 'set null' }),
+  referrer: text('referrer'),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 export const ontologyMeta = pgTable('ontology_meta', {

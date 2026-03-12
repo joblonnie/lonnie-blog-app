@@ -5,6 +5,10 @@ import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableCell } from '@tiptap/extension-table-cell';
 import { Markdown } from 'tiptap-markdown';
 import { useEffect, useCallback, useRef } from 'react';
 import { getUploadUrl, uploadFileToS3 } from '@/lib/api';
@@ -33,6 +37,10 @@ export default function TiptapEditor({ content, onChange, placeholder }: TiptapE
       StarterKit,
       Link.configure({ openOnClick: false }),
       Image,
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Placeholder.configure({ placeholder: placeholder ?? 'Type \'/\' for commands...' }),
       TaskList,
       TaskItem.configure({ nested: true }),

@@ -14,6 +14,10 @@ app.get('/', async (c) => {
     .select({
       id: documents.id,
       title: documents.title,
+      summary: documents.summary,
+      keywords: documents.keywords,
+      published: documents.published,
+      category: documents.category,
       createdAt: documents.createdAt,
       updatedAt: documents.updatedAt,
     })
@@ -95,7 +99,7 @@ app.put('/:id', async (c) => {
   const db = getDb();
   const id = Number(c.req.param('id'));
   if (Number.isNaN(id)) return c.json({ error: 'Invalid id' }, 400);
-  const body = await c.req.json<{ title?: string; content?: string }>();
+  const body = await c.req.json<{ title?: string; content?: string; published?: boolean; category?: string | null }>();
 
   // Check if content actually changed
   let contentChanged = false;
@@ -109,6 +113,8 @@ app.put('/:id', async (c) => {
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (body.title !== undefined) updates.title = body.title;
   if (body.content !== undefined) updates.content = body.content;
+  if (body.published !== undefined) updates.published = body.published;
+  if (body.category !== undefined) updates.category = body.category;
   if (contentChanged) {
     updates.summary = null;
     updates.keywords = [];
@@ -123,6 +129,21 @@ app.put('/:id', async (c) => {
 
   markOntologyStale().catch(() => {});
 
+  return c.json(doc);
+});
+
+// PATCH /documents/:id/publish - published 토글
+app.patch('/:id/publish', async (c) => {
+  const db = getDb();
+  const id = Number(c.req.param('id'));
+  if (Number.isNaN(id)) return c.json({ error: 'Invalid id' }, 400);
+  const [existing] = await db.select({ published: documents.published }).from(documents).where(eq(documents.id, id));
+  if (!existing) return c.json({ error: 'Not found' }, 404);
+  const [doc] = await db
+    .update(documents)
+    .set({ published: !existing.published, updatedAt: new Date() })
+    .where(eq(documents.id, id))
+    .returning();
   return c.json(doc);
 });
 

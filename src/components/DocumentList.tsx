@@ -1,228 +1,37 @@
-import { useState, useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDocumentList, useDocument, isAiPending } from '@/hooks/useDocuments';
-import { deleteDocument, createDocument } from '@/lib/api';
+import { useDocumentList } from '@/hooks/useDocuments';
+import { createDocument, togglePublished, updateDocument } from '@/lib/api';
 import { toastManager } from './Toast';
-import MarkdownRenderer from './MarkdownRenderer';
-import { InfoPanelMobile } from './InfoPanel';
-import ConfirmDialog from './ConfirmDialog';
 import FileUpload from './FileUpload';
-import { useRegenerate } from '@/hooks/useRegenerate';
 import type { DocumentListItem } from '@/types';
-
-// --- Reactive mobile detection ---
-const mobileQuery = typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)') : null;
-function subscribeMobile(cb: () => void) {
-  mobileQuery?.addEventListener('change', cb);
-  return () => mobileQuery?.removeEventListener('change', cb);
-}
-function getIsMobile() {
-  return mobileQuery?.matches ?? false;
-}
-
-// --- Detail Panel for a single document ---
-function DetailPanel({
-  docId,
-  onClose,
-  onDelete,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  dragOver,
-}: {
-  docId: number;
-  onClose: () => void;
-  onDelete: (id: number) => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDragLeave: () => void;
-  onDrop: (e: React.DragEvent) => void;
-  dragOver: boolean;
-}) {
-  const navigate = useNavigate();
-  const { document, loading, refresh } = useDocument(docId);
-  const { regenerating, handleRegenerate } = useRegenerate(document?.id, refresh);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  // Auto-refresh when summary is pending
-  const retryRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  useEffect(() => {
-    clearTimeout(retryRef.current);
-    if (isAiPending(document)) {
-      retryRef.current = setTimeout(() => refresh(), 3000);
-    }
-    return () => clearTimeout(retryRef.current);
-  }, [document, refresh]);
-
-  const handleDelete = useCallback(async () => {
-    if (!document) return;
-    setDeleting(true);
-    try {
-      await deleteDocument(document.id);
-      toastManager.add({ title: `"${document.title}" deleted` });
-      onDelete(document.id);
-    } catch {
-      toastManager.add({ title: 'Delete failed' });
-    } finally {
-      setDeleting(false);
-      setConfirmDelete(false);
-    }
-  }, [document, onDelete]);
-
-  const aiLoading = isAiPending(document);
-  const panelProps = {
-    topics: document?.topics ?? [],
-    summary: document?.summary ?? null,
-    keywords: document?.keywords ?? [],
-    content: document?.content ?? '',
-    onRegenerate: handleRegenerate,
-    regenerating,
-    loading: loading || aiLoading,
-  };
-
-  return (
-    <div
-      className={`bg-white rounded-xl border-2 flex flex-col h-full min-w-0 transition-colors ${
-        dragOver ? 'border-blue-400 bg-blue-50/50' : 'border-gray-200'
-      }`}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-200">
-        <div className="min-w-0 flex-1">
-          {loading && !document ? (
-            <div className="h-6 bg-gray-100 rounded w-1/3 animate-pulse" />
-          ) : document ? (
-            <>
-              <h2 className="text-lg font-bold text-gray-900 truncate">{document.title}</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Updated {new Date(document.updatedAt).toLocaleDateString('ko-KR')}
-              </p>
-            </>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-1 shrink-0 ml-3">
-          {document && (
-            <>
-              <button
-                onClick={() => navigate(`/doc/${document.id}/edit`)}
-                className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                aria-label="Edit"
-              >
-                <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M11.5 2.5l4 4M4 15l-1.5.5.5-1.5L12.5 4.5l1 1L4 15z" />
-                  <path d="M11 5l2 2" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                aria-label="Delete"
-              >
-                <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 5h12M7 5V3.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V5M13.5 5l-.5 9.5a1.5 1.5 0 0 1-1.5 1.5h-5A1.5 1.5 0 0 1 5 14.5L4.5 5" />
-                </svg>
-              </button>
-            </>
-          )}
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            aria-label="Close"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="4" y1="4" x2="12" y2="12" />
-              <line x1="12" y1="4" x2="4" y2="12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-4 min-w-0">
-        {loading && !document ? (
-          <div className="space-y-3 animate-pulse">
-            <div className="h-4 bg-gray-100 rounded w-full" />
-            <div className="h-4 bg-gray-100 rounded w-5/6" />
-            <div className="h-4 bg-gray-100 rounded w-4/6" />
-            <div className="h-4 bg-gray-100 rounded w-full" />
-          </div>
-        ) : document ? (
-          <>
-            <div className="mb-4">
-              <InfoPanelMobile {...panelProps} />
-            </div>
-            <MarkdownRenderer content={document.content} />
-          </>
-        ) : (
-          <div className="text-center py-8 text-gray-500">Document not found</div>
-        )}
-      </div>
-
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title="Delete Document"
-        description={`Are you sure you want to delete "${document?.title}"? This action cannot be undone.`}
-        confirmLabel="Delete"
-        confirmingLabel="Deleting..."
-        onConfirm={handleDelete}
-        confirming={deleting}
-      />
-    </div>
-  );
-}
-
-// --- Empty Drop Zone ---
-function DropZone({
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  dragOver,
-}: {
-  onDragOver: (e: React.DragEvent) => void;
-  onDragLeave: () => void;
-  onDrop: (e: React.DragEvent) => void;
-  dragOver: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-xl border-2 border-dashed flex items-center justify-center h-full min-h-[200px] transition-colors ${
-        dragOver
-          ? 'border-blue-400 bg-blue-50 text-blue-500'
-          : 'border-gray-300 text-gray-400'
-      }`}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-    >
-      <div className="text-center">
-        <svg className="mx-auto mb-2" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-        </svg>
-        <p className="text-sm font-medium">Drop document here</p>
-      </div>
-    </div>
-  );
-}
 
 // --- Main DocumentList ---
 export default function DocumentList() {
   const { documents, loading, refresh } = useDocumentList();
   const navigate = useNavigate();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
-  // Fixed 2 slots: [left, right], null means empty
-  const [slots, setSlots] = useState<[number | null, number | null]>([null, null]);
-  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
 
-  // Extract unique topics from documents
+  // Extract unique categories from documents
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>();
+    for (const doc of documents) {
+      if (doc.category) cats.add(doc.category);
+    }
+    return [...cats].sort();
+  }, [documents]);
+
+  // Filter by category first
+  const categoryFiltered = useMemo(() => {
+    if (!selectedCategory) return documents;
+    return documents.filter((d) => d.category === selectedCategory);
+  }, [documents, selectedCategory]);
+
+  // Extract unique topics from category-filtered documents
   const allTopics = useMemo(() => {
     const topicMap = new Map<string, { name: string; color: string }>();
-    for (const doc of documents) {
+    for (const doc of categoryFiltered) {
       for (const t of doc.topics) {
         if (!topicMap.has(t.name)) {
           topicMap.set(t.name, { name: t.name, color: t.color });
@@ -230,124 +39,118 @@ export default function DocumentList() {
       }
     }
     return Array.from(topicMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [documents]);
+  }, [categoryFiltered]);
 
-  // Filter documents by topic
+  // Filter documents by topic within category
   const filteredDocs = useMemo(() => {
-    if (!selectedTopic) return documents;
-    return documents.filter((d) => d.topics.some((t) => t.name === selectedTopic));
-  }, [documents, selectedTopic]);
+    if (!selectedTopic) return categoryFiltered;
+    return categoryFiltered.filter((d) => d.topics.some((t) => t.name === selectedTopic));
+  }, [categoryFiltered, selectedTopic]);
 
-  // Click: place in first empty slot, or toggle off
-  const handleDocClick = useCallback((docId: number) => {
-    setSlots((prev) => {
-      // Already in a slot → remove it
-      if (prev[0] === docId) return [null, prev[1]];
-      if (prev[1] === docId) return [prev[0], null];
-      // Mobile: only slot 0
-      if (getIsMobile()) return [docId, null];
-      // Place in first empty slot
-      if (prev[0] === null) return [docId, prev[1]];
-      if (prev[1] === null) return [prev[0], docId];
-      // Both full → replace slot 0
-      return [docId, prev[1]];
-    });
-  }, []);
+  // Group documents by category
+  const groupedDocs = useMemo(() => {
+    if (selectedCategory) return null; // no grouping when a specific category is selected
+    const groups = new Map<string, typeof filteredDocs>();
+    const uncategorized: typeof filteredDocs = [];
+    for (const doc of filteredDocs) {
+      if (doc.category) {
+        const arr = groups.get(doc.category);
+        if (arr) arr.push(doc);
+        else groups.set(doc.category, [doc]);
+      } else {
+        uncategorized.push(doc);
+      }
+    }
+    const result: { label: string; docs: typeof filteredDocs }[] = [];
+    for (const cat of [...groups.keys()].sort()) {
+      result.push({ label: cat, docs: groups.get(cat)! });
+    }
+    if (uncategorized.length > 0) {
+      result.push({ label: 'Uncategorized', docs: uncategorized });
+    }
+    return result;
+  }, [filteredDocs, selectedCategory]);
 
-  // Drag start
+  // Drag start (for category reordering)
   const handleDragStart = useCallback((e: React.DragEvent, docId: number) => {
     e.dataTransfer.setData('text/plain', String(docId));
     e.dataTransfer.effectAllowed = 'move';
-    setIsDragging(true);
   }, []);
 
   const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-    setDragOverSlot(null);
+    setDragOverCategory(null);
   }, []);
 
-  // Drop into slot
-  const handleSlotDrop = useCallback((e: React.DragEvent, slotIndex: number) => {
+  // Drag-and-drop between category groups
+  const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
+
+  const handleCategoryDrop = useCallback(async (e: React.DragEvent, groupLabel: string) => {
     e.preventDefault();
-    setDragOverSlot(null);
-    setIsDragging(false);
+    setDragOverCategory(null);
     const docId = Number(e.dataTransfer.getData('text/plain'));
     if (Number.isNaN(docId)) return;
 
-    setSlots((prev) => {
-      const next: [number | null, number | null] = [...prev];
-      // If dragged doc is already in the OTHER slot, swap or just move
-      const otherSlot = slotIndex === 0 ? 1 : 0;
-      if (next[otherSlot] === docId) {
-        next[otherSlot] = next[slotIndex]; // swap
-      }
-      next[slotIndex] = docId;
-      return next;
-    });
-  }, []);
+    const targetCategory = groupLabel === 'Uncategorized' ? null : groupLabel;
+    const doc = documents.find((d) => d.id === docId);
+    if (!doc || doc.category === targetCategory) return;
 
-  const handleSlotDragOver = useCallback((e: React.DragEvent, slotIndex: number) => {
+    try {
+      await updateDocument(docId, { category: targetCategory });
+      refresh();
+      toastManager.add({ title: `Moved to ${groupLabel}` });
+    } catch {
+      toastManager.add({ title: 'Move failed' });
+    }
+  }, [documents, refresh]);
+
+  const handleCategoryDragOver = useCallback((e: React.DragEvent, groupLabel: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setDragOverSlot(slotIndex);
+    setDragOverCategory(groupLabel);
   }, []);
 
-  const handleSlotDragLeave = useCallback((slotIndex: number) => {
-    setDragOverSlot((prev) => (prev === slotIndex ? null : prev));
+  const handleCategoryDragLeave = useCallback(() => {
+    setDragOverCategory(null);
   }, []);
 
-  const handleCloseSlot = useCallback((slotIndex: number) => {
-    setSlots((prev) => {
-      const next: [number | null, number | null] = [...prev];
-      next[slotIndex] = null;
-      return next;
-    });
-  }, []);
-
-  const handleDeleteFromSlot = useCallback((docId: number) => {
-    setSlots((prev) => {
-      const next: [number | null, number | null] = [...prev];
-      if (next[0] === docId) next[0] = null;
-      if (next[1] === docId) next[1] = null;
-      return next;
-    });
-    refresh();
+  const handleCardTogglePublish = useCallback(async (docId: number) => {
+    try {
+      await togglePublished(docId);
+      refresh();
+    } catch {
+      toastManager.add({ title: 'Toggle failed' });
+    }
   }, [refresh]);
 
   const handleUpload = useCallback(async (title: string, content: string) => {
     try {
-      const doc = await createDocument({ title, content });
+      await createDocument({ title, content });
       toastManager.add({ title: `"${title}" uploaded` });
       refresh();
-      setSlots([doc.id, null]);
     } catch {
       toastManager.add({ title: 'Upload failed' });
     }
   }, [refresh]);
 
-  // Clean up slots when documents change
-  useEffect(() => {
-    const docIds = new Set(documents.map((d) => d.id));
-    setSlots((prev) => [
-      prev[0] !== null && docIds.has(prev[0]) ? prev[0] : null,
-      prev[1] !== null && docIds.has(prev[1]) ? prev[1] : null,
-    ]);
-  }, [documents]);
-
-  const hasAnySlot = slots[0] !== null || slots[1] !== null;
-  const isMobile = useSyncExternalStore(subscribeMobile, getIsMobile);
-
   if (loading && documents.length === 0) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 animate-pulse">
+        {/* Category skeleton */}
         <div className="flex gap-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-8 w-20 bg-gray-100 rounded-full animate-pulse" />
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-9 w-16 bg-gray-100 rounded-lg" />
           ))}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        {/* Topic skeleton */}
+        <div className="flex gap-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-8 w-20 bg-gray-100 rounded-full" />
+          ))}
+        </div>
+        {/* Card grid skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="h-24 bg-white rounded-xl border border-gray-200 animate-pulse" />
+            <div key={i} className="h-40 bg-white rounded-xl border border-gray-200" />
           ))}
         </div>
       </div>
@@ -363,7 +166,7 @@ export default function DocumentList() {
           <FileUpload onUpload={handleUpload} />
         </div>
         <button
-          onClick={() => navigate('/new')}
+          onClick={() => navigate('/admin/new')}
           className="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
         >
           + Create Document
@@ -374,17 +177,46 @@ export default function DocumentList() {
 
   return (
     <div className="space-y-4">
+      {/* Category filter tabs */}
+      {allCategories.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+          <button
+            onClick={() => { setSelectedCategory(null); setSelectedTopic(null); }}
+            className={`shrink-0 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              selectedCategory === null
+                ? 'bg-gray-900 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            All
+          </button>
+          {allCategories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => { setSelectedCategory(selectedCategory === cat ? null : cat); setSelectedTopic(null); }}
+              className={`shrink-0 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                selectedCategory === cat
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Topic filter tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
         <button
           onClick={() => setSelectedTopic(null)}
           className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
             selectedTopic === null
-              ? 'bg-gray-900 text-white'
+              ? 'bg-gray-700 text-white'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
-          All ({documents.length})
+          All ({categoryFiltered.length})
         </button>
         {allTopics.map((topic) => (
           <button
@@ -406,95 +238,66 @@ export default function DocumentList() {
         ))}
       </div>
 
-      {/* Document grid — draggable cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-        {filteredDocs.map((doc) => (
-          <DocumentCard
-            key={doc.id}
-            doc={doc}
-            selected={slots[0] === doc.id || slots[1] === doc.id}
-            onClick={() => handleDocClick(doc.id)}
-            onDragStart={(e) => handleDragStart(e, doc.id)}
-            onDragEnd={handleDragEnd}
-          />
-        ))}
-      </div>
-
-      {/* Split detail view — always show 2 slots on desktop when dragging or has content */}
-      {(hasAnySlot || isDragging) && (
-        <div
-          className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}
-          style={{ minHeight: '50vh' }}
-        >
-          {/* Slot 0 (Left) */}
-          {slots[0] !== null ? (
-            <DetailPanel
-              docId={slots[0]}
-              onClose={() => handleCloseSlot(0)}
-              onDelete={handleDeleteFromSlot}
-              onDragOver={(e) => handleSlotDragOver(e, 0)}
-              onDragLeave={() => handleSlotDragLeave(0)}
-              onDrop={(e) => handleSlotDrop(e, 0)}
-              dragOver={dragOverSlot === 0}
+      {/* Document grid — grouped by category or flat */}
+      {groupedDocs && groupedDocs.length > 1 ? (
+        groupedDocs.map(({ label, docs }) => (
+          <div
+            key={label}
+            onDragOver={(e) => handleCategoryDragOver(e, label)}
+            onDragLeave={handleCategoryDragLeave}
+            onDrop={(e) => handleCategoryDrop(e, label)}
+            className={`rounded-xl p-3 -mx-3 transition-colors ${
+              dragOverCategory === label
+                ? 'bg-blue-50 ring-2 ring-blue-300 ring-inset'
+                : ''
+            }`}
+          >
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-0">{label}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {docs.map((doc) => (
+                <DocumentCard
+                  key={doc.id}
+                  doc={doc}
+                  onClick={() => navigate(`/admin/doc/${doc.id}`)}
+                  onDragStart={(e) => handleDragStart(e, doc.id)}
+                  onDragEnd={handleDragEnd}
+                  onTogglePublish={handleCardTogglePublish}
+                />
+              ))}
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filteredDocs.map((doc) => (
+            <DocumentCard
+              key={doc.id}
+              doc={doc}
+              onClick={() => navigate(`/admin/doc/${doc.id}`)}
+              onDragStart={(e) => handleDragStart(e, doc.id)}
+              onDragEnd={handleDragEnd}
+              onTogglePublish={handleCardTogglePublish}
             />
-          ) : (
-            !isMobile && (
-              <DropZone
-                onDragOver={(e) => handleSlotDragOver(e, 0)}
-                onDragLeave={() => handleSlotDragLeave(0)}
-                onDrop={(e) => handleSlotDrop(e, 0)}
-                dragOver={dragOverSlot === 0}
-              />
-            )
-          )}
-
-          {/* Slot 1 (Right) — desktop only */}
-          {!isMobile && (
-            slots[1] !== null ? (
-              <DetailPanel
-                docId={slots[1]}
-                onClose={() => handleCloseSlot(1)}
-                onDelete={handleDeleteFromSlot}
-                onDragOver={(e) => handleSlotDragOver(e, 1)}
-                onDragLeave={() => handleSlotDragLeave(1)}
-                onDrop={(e) => handleSlotDrop(e, 1)}
-                dragOver={dragOverSlot === 1}
-              />
-            ) : (
-              <DropZone
-                onDragOver={(e) => handleSlotDragOver(e, 1)}
-                onDragLeave={() => handleSlotDragLeave(1)}
-                onDrop={(e) => handleSlotDrop(e, 1)}
-                dragOver={dragOverSlot === 1}
-              />
-            )
-          )}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!hasAnySlot && !isDragging && (
-        <div className="text-center py-8 text-gray-400 text-sm">
-          Drag a document to the panel below, or click to view. Drop onto a panel to replace it.
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-// --- Document Card (draggable) ---
+// --- Document Card (draggable for category reordering) ---
 function DocumentCard({
   doc,
-  selected,
   onClick,
   onDragStart,
   onDragEnd,
+  onTogglePublish,
 }: {
   doc: DocumentListItem;
-  selected: boolean;
   onClick: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
+  onTogglePublish: (id: number) => void;
 }) {
   return (
     <div
@@ -502,16 +305,33 @@ function DocumentCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
-      className={`text-left p-3 rounded-xl border transition-all cursor-grab active:cursor-grabbing select-none ${
-        selected
-          ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
-          : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-      }`}
+      className="text-left p-4 rounded-xl border border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing select-none flex flex-col"
     >
-      <p className="text-sm font-medium text-gray-900 truncate">{doc.title}</p>
-      <p className="text-xs text-gray-400 mt-1">
-        {new Date(doc.updatedAt).toLocaleDateString('ko-KR')}
-      </p>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={(e) => { e.stopPropagation(); onTogglePublish(doc.id); }}
+          className={`w-3 h-3 rounded-full shrink-0 border-2 transition-colors ${
+            doc.published
+              ? 'bg-green-400 border-green-500 hover:bg-green-300'
+              : 'bg-gray-200 border-gray-300 hover:bg-gray-300'
+          }`}
+          title={doc.published ? 'Click to unpublish' : 'Click to publish'}
+        />
+        <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug">{doc.title}</p>
+      </div>
+      <div className="flex items-center gap-1.5 mt-1.5">
+        <p className="text-xs text-gray-400">
+          {new Date(doc.updatedAt).toLocaleDateString('ko-KR')}
+        </p>
+        {doc.category && (
+          <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-600">
+            {doc.category}
+          </span>
+        )}
+      </div>
+      {doc.summary && (
+        <p className="text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{doc.summary}</p>
+      )}
       {doc.topics.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
           {doc.topics.slice(0, 3).map((t) => (
@@ -526,6 +346,23 @@ function DocumentCard({
           {doc.topics.length > 3 && (
             <span className="px-1.5 py-0.5 text-[10px] text-gray-400">
               +{doc.topics.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+      {doc.keywords.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {doc.keywords.slice(0, 4).map((kw) => (
+            <span
+              key={kw}
+              className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-50 text-blue-600"
+            >
+              {kw}
+            </span>
+          ))}
+          {doc.keywords.length > 4 && (
+            <span className="px-1.5 py-0.5 text-[10px] text-gray-400">
+              +{doc.keywords.length - 4}
             </span>
           )}
         </div>
