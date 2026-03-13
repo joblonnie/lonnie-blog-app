@@ -47,6 +47,18 @@ export const pageViews = pgTable('page_views', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const annotations = pgTable('annotations', {
+  id: serial('id').primaryKey(),
+  documentId: integer('document_id').notNull().references(() => documents.id, { onDelete: 'cascade' }),
+  type: text('type').$type<'highlight' | 'underline' | 'memo'>().notNull(),
+  color: text('color'),
+  selectedText: text('selected_text').notNull(),
+  startOffset: integer('start_offset').notNull(),
+  endOffset: integer('end_offset').notNull(),
+  memo: text('memo'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export const ontologyMeta = pgTable('ontology_meta', {
   id: serial('id').primaryKey(),
   lastGeneratedAt: timestamp('last_generated_at'),

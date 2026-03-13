@@ -8,8 +8,12 @@ import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { InfoPanelMobile } from '@/components/InfoPanel';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import SplitSidebar from '@/components/SplitSidebar';
+import ContentSearchBar from '@/components/ContentSearchBar';
+import { useContentSearch } from '@/hooks/useContentSearch';
+import { useAnnotations } from '@/hooks/useAnnotations';
+import AnnotationContextMenu from '@/components/AnnotationContextMenu';
 import { subscribeMobile, getIsMobile } from '@/lib/mobile';
-import type { Document } from '@/types';
+import type { Document, HighlightColor, Annotation } from '@/types';
 
 export default function AdminDocDetail() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +27,56 @@ export default function AdminDocDetail() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
+
+  const contentSearch = useContentSearch(doc?.content);
+  const annotationsHook = useAnnotations(docId, contentSearch.containerRef, doc?.content);
+
+  // Context menu state
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; existing: Annotation | null } | null>(null);
+
+  // Ctrl/Cmd+F to open content search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        contentSearch.open();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [contentSearch]);
+
+  // Reapply annotations when content search closes
+  const prevSearchOpen = useRef(contentSearch.isOpen);
+  useEffect(() => {
+    if (prevSearchOpen.current && !contentSearch.isOpen) {
+      annotationsHook.reapply();
+    }
+    prevSearchOpen.current = contentSearch.isOpen;
+  }, [contentSearch.isOpen, annotationsHook]);
+
+  // Context menu handler
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    const container = contentSearch.containerRef.current;
+    if (!container) return;
+
+    const target = e.target as HTMLElement;
+    // Check if right-clicked on an existing annotation mark
+    const existingAnn = annotationsHook.getAnnotationAt(target);
+
+    if (existingAnn) {
+      e.preventDefault();
+      setCtxMenu({ x: e.clientX, y: e.clientY, existing: existingAnn });
+      return;
+    }
+
+    // Check if text is selected
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().trim()) {
+      e.preventDefault();
+      setCtxMenu({ x: e.clientX, y: e.clientY, existing: null });
+    }
+  }, [contentSearch.containerRef, annotationsHook]);
 
   // Split view state
   const [splitId, setSplitId] = useState<number | null>(null);
@@ -130,6 +184,18 @@ export default function AdminDocDetail() {
 
   return (
     <>
+      {contentSearch.isOpen && (
+        <ContentSearchBar
+          query={contentSearch.query}
+          setQuery={contentSearch.setQuery}
+          matchCount={contentSearch.matchCount}
+          currentIndex={contentSearch.currentIndex}
+          goNext={contentSearch.goNext}
+          goPrev={contentSearch.goPrev}
+          onClose={contentSearch.close}
+        />
+      )}
+
       {sidebarOpen && docId != null && (
         <SplitSidebar
           items={sidebarItems}
@@ -203,7 +269,9 @@ export default function AdminDocDetail() {
             <div className="mb-4">
               <InfoPanelMobile {...panelProps} />
             </div>
-            <MarkdownRenderer content={doc.content} />
+            <div ref={contentSearch.containerRef} onContextMenu={handleContextMenu}>
+              <MarkdownRenderer content={doc.content} />
+            </div>
           </div>
 
           {/* Split panel */}
@@ -240,6 +308,30 @@ export default function AdminDocDetail() {
           )}
         </div>
       </div>
+
+      {ctxMenu && (
+        <AnnotationContextMenu
+          position={{ x: ctxMenu.x, y: ctxMenu.y }}
+          existingAnnotation={ctxMenu.existing}
+          onHighlight={(color) => {
+            annotationsHook.addAnnotation('highlight', color);
+            setCtxMenu(null);
+          }}
+          onUnderline={() => {
+            annotationsHook.addAnnotation('underline');
+            setCtxMenu(null);
+          }}
+          onMemo={(memo) => {
+            annotationsHook.addAnnotation('memo', undefined, memo);
+            setCtxMenu(null);
+          }}
+          onRemove={(id) => {
+            annotationsHook.removeAnnotation(id);
+            setCtxMenu(null);
+          }}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmDelete}

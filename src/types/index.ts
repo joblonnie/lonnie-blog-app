@@ -60,6 +60,22 @@ export interface ChatMessage {
   sources?: { id: number; title: string }[];
 }
 
+// Annotation types
+export type AnnotationType = 'highlight' | 'underline' | 'memo';
+export type HighlightColor = 'yellow' | 'green' | 'blue' | 'red' | 'purple';
+
+export interface Annotation {
+  id: number;
+  documentId: number;
+  type: AnnotationType;
+  color: HighlightColor | null;
+  selectedText: string;
+  startOffset: number;
+  endOffset: number;
+  memo: string | null;
+  createdAt: string;
+}
+
 // Auth types
 export interface AdminUser {
   githubId: string;

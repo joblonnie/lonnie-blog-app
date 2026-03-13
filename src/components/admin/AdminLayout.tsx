@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth';
 import { createDocument } from '@/lib/api';
 import { toastManager } from '@/components/Toast';
 import ScrollToTop from '@/components/ScrollToTop';
+import SearchOverlay from '@/components/SearchOverlay';
 
 export default function AdminLayout() {
   const { user, loading, logout } = useAuth();
@@ -11,6 +12,19 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Cmd/Ctrl+K to open search overlay
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -121,6 +135,18 @@ export default function AdminLayout() {
               <span className="hidden sm:inline">Dashboard</span>
             </Link>
             <button
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+              aria-label="Search"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <span className="hidden sm:inline">Search</span>
+              <kbd className="hidden sm:inline text-xs text-gray-400 bg-gray-100 px-1 py-0.5 rounded ml-1">⌘K</kbd>
+            </button>
+            <button
               onClick={handleCreate}
               disabled={creating}
               className="flex items-center gap-1 ml-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
@@ -163,6 +189,10 @@ export default function AdminLayout() {
       </main>
 
       <ScrollToTop />
+
+      {searchOpen && (
+        <SearchOverlay mode="admin" onClose={() => setSearchOpen(false)} />
+      )}
     </div>
   );
 }

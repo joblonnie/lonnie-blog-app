@@ -1,4 +1,4 @@
-import type { Document, DocumentListItem, OntologyGraph, OntologyMeta, ChatMessage, AdminUser, BlogPost, BlogPostDetail, AnalyticsSummary, TopDocument, TopReferrer, PopularTopic } from '@/types';
+import type { Document, DocumentListItem, OntologyGraph, OntologyMeta, ChatMessage, AdminUser, BlogPost, BlogPostDetail, AnalyticsSummary, TopDocument, TopReferrer, PopularTopic, Annotation } from '@/types';
 import { router } from '@/app/router';
 import { fireOffline, fireOnline } from '@/components/OfflineDialog';
 
@@ -50,8 +50,11 @@ async function publicRequest<T>(url: string, options?: RequestInit): Promise<T> 
 }
 
 // Document APIs (admin)
-export function fetchDocuments(): Promise<DocumentListItem[]> {
-  return request(BASE);
+export function fetchDocuments(search?: string): Promise<DocumentListItem[]> {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  const qs = params.toString();
+  return request(qs ? `${BASE}?${qs}` : BASE);
 }
 
 export function fetchDocument(id: number): Promise<Document> {
@@ -144,11 +147,37 @@ export async function logout(): Promise<void> {
   await fetch('/api/auth/logout', { method: 'POST' });
 }
 
+// Annotation APIs
+export function fetchAnnotations(documentId: number): Promise<Annotation[]> {
+  return request(`/api/annotations?documentId=${documentId}`);
+}
+
+export function createAnnotation(data: {
+  documentId: number;
+  type: 'highlight' | 'underline' | 'memo';
+  color?: string;
+  selectedText: string;
+  startOffset: number;
+  endOffset: number;
+  memo?: string;
+}): Promise<Annotation> {
+  return request('/api/annotations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteAnnotation(id: number): Promise<void> {
+  await request(`/api/annotations/${id}`, { method: 'DELETE' });
+}
+
 // Public blog APIs
-export function fetchPublicPosts(topic?: string, category?: string): Promise<BlogPost[]> {
+export function fetchPublicPosts(topic?: string, category?: string, search?: string): Promise<BlogPost[]> {
   const params = new URLSearchParams();
   if (topic) params.set('topic', topic);
   if (category) params.set('category', category);
+  if (search) params.set('search', search);
   const qs = params.toString();
   const url = qs ? `/api/public/posts?${qs}` : '/api/public/posts';
   return publicRequest(url);

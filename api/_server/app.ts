@@ -8,6 +8,7 @@ import documents from './routes/documents.js';
 import media from './routes/media.js';
 import ontology from './routes/ontology.js';
 import chat from './routes/chat.js';
+import annotationsRoute from './routes/annotations.js';
 
 export const app = new Hono().basePath('/api');
 
@@ -42,5 +43,6 @@ admin.route('/media', media);
 admin.route('/ontology', ontology);
 admin.route('/chat', chat);
 admin.route('/analytics', analytics);
+admin.route('/annotations', annotationsRoute);
 
 app.route('/', admin);

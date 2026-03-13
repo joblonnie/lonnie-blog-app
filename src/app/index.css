@@ -72,3 +72,62 @@ body {
   background-color: #f3f4f6;
   font-weight: 600;
 }
+
+/* Content search highlights */
+mark.search-highlight {
+  background-color: #fef08a;
+  color: inherit;
+  border-radius: 2px;
+}
+mark.search-highlight-active {
+  background-color: #fb923c;
+  color: white;
+}
+
+/* Annotation highlights */
+mark.annotation-highlight {
+  color: inherit;
+  border-radius: 2px;
+}
+mark.annotation-highlight-yellow {
+  background-color: rgba(250, 204, 21, 0.4);
+}
+mark.annotation-highlight-green {
+  background-color: rgba(74, 222, 128, 0.4);
+}
+mark.annotation-highlight-blue {
+  background-color: rgba(96, 165, 250, 0.4);
+}
+mark.annotation-highlight-red {
+  background-color: rgba(248, 113, 113, 0.4);
+}
+mark.annotation-highlight-purple {
+  background-color: rgba(192, 132, 252, 0.4);
+}
+mark.annotation-underline {
+  background: none;
+  text-decoration: underline 2px #6366f1;
+  text-underline-offset: 3px;
+}
+mark.annotation-memo {
+  background-color: rgba(250, 204, 21, 0.15);
+  border-bottom: 2px dashed #f59e0b;
+  cursor: help;
+  position: relative;
+}
+mark.annotation-memo:hover::after {
+  content: attr(data-memo);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-width: 250px;
+  z-index: 50;
+  pointer-events: none;
+}

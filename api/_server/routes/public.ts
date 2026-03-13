@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { desc, eq, and, inArray, isNotNull } from 'drizzle-orm';
+import { desc, eq, and, inArray, isNotNull, ilike, or, sql } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { documents, documentTopics, topics } from '../db/schema.js';
 
@@ -10,9 +10,20 @@ app.get('/posts', async (c) => {
   const db = getDb();
   const topicFilter = c.req.query('topic');
   const categoryFilter = c.req.query('category');
+  const search = c.req.query('search');
 
   const conditions = [eq(documents.published, true)];
   if (categoryFilter) conditions.push(eq(documents.category, categoryFilter));
+  if (search) {
+    const pattern = `%${search}%`;
+    conditions.push(
+      or(
+        ilike(documents.title, pattern),
+        ilike(documents.content, pattern),
+        sql`${documents.keywords}::text ILIKE ${pattern}`,
+      )!,
+    );
+  }
 
   const rows = await db
     .select({

@@ -5,6 +5,8 @@ import type { BlogPost as BlogPostType, BlogPostDetail } from '@/types';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { InfoPanelMobile } from '@/components/InfoPanel';
 import SplitSidebar from '@/components/SplitSidebar';
+import ContentSearchBar from '@/components/ContentSearchBar';
+import { useContentSearch } from '@/hooks/useContentSearch';
 import { extractToc } from '@/lib/toc';
 import { subscribeMobile, getIsMobile } from '@/lib/mobile';
 
@@ -20,6 +22,20 @@ export default function BlogPost() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [splitPost, setSplitPost] = useState<BlogPostDetail | null>(null);
   const [posts, setPosts] = useState<BlogPostType[]>([]);
+
+  const contentSearch = useContentSearch(post?.content);
+
+  // Ctrl/Cmd+F to open content search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        contentSearch.open();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [contentSearch]);
 
   useEffect(() => {
     if (!id) return;
@@ -106,6 +122,18 @@ export default function BlogPost() {
 
   return (
     <>
+      {contentSearch.isOpen && (
+        <ContentSearchBar
+          query={contentSearch.query}
+          setQuery={contentSearch.setQuery}
+          matchCount={contentSearch.matchCount}
+          currentIndex={contentSearch.currentIndex}
+          goNext={contentSearch.goNext}
+          goPrev={contentSearch.goPrev}
+          onClose={contentSearch.close}
+        />
+      )}
+
       {sidebarOpen && (
         <SplitSidebar
           items={sidebarItems}
@@ -167,7 +195,9 @@ export default function BlogPost() {
             />
           </div>
 
-          <MarkdownRenderer content={post.content} />
+          <div ref={contentSearch.containerRef}>
+            <MarkdownRenderer content={post.content} />
+          </div>
         </article>
 
         {/* Split panel (when comparing) */}

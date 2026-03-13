@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { documents, documentTopics, topics } from '../db/schema.js';
 import { generateAIMetadata } from '../lib/ai.js';
@@ -10,7 +10,9 @@ const app = new Hono();
 // GET /documents - 목록 (content 제외, 최신순, topics 포함)
 app.get('/', async (c) => {
   const db = getDb();
-  const rows = await db
+  const search = c.req.query('search');
+
+  let query = db
     .select({
       id: documents.id,
       title: documents.title,
@@ -22,7 +24,20 @@ app.get('/', async (c) => {
       updatedAt: documents.updatedAt,
     })
     .from(documents)
-    .orderBy(desc(documents.updatedAt));
+    .$dynamic();
+
+  if (search) {
+    const pattern = `%${search}%`;
+    query = query.where(
+      or(
+        ilike(documents.title, pattern),
+        ilike(documents.content, pattern),
+        sql`${documents.keywords}::text ILIKE ${pattern}`,
+      ),
+    );
+  }
+
+  const rows = await query.orderBy(desc(documents.updatedAt));
 
   // Fetch all topic assignments in one query
   const allAssignments = await db
